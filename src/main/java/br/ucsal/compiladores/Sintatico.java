@@ -67,6 +67,7 @@ public class Sintatico {
         relatorioWriter.append("Codigo da Equipe: 02\n");
         relatorioWriter.append("Componentes: \n");
         relatorioWriter.append("\tEwerton Luis de Jesus Santana; ewerton.santana@ucsal.edu.br; (71)98824-0646\n");
+        relatorioWriter.append("\tJean Lima de Souza Junior; jeanl.junior@ucsal.edu.br; (75)99222-8501\n");
         for (Elemento elemento : relatorio.getElementos()) {
             relatorioWriter.append("\n");
             for (int i = 0; i <= 3; i++) {
