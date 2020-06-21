@@ -28,69 +28,94 @@ public class Lexico {
         StringBuilder atomoAtual = new StringBuilder();
         Elemento elemento = null;
         boolean aspas = false;
+        boolean comentarioLinha = false;
+        boolean comentarioBloco = false;
         Character character;
         while ((character = getChar()) != null) {
             continuarMesmoCharacter = false;
-            if ((character == ' ' && !aspas) || character == '\n' || character == '\t') {
-                return elemento;
-            }
-            atomoAtual.append(character);
-            PalavrasReservadas pr = PalavrasReservadas.getEqual(atomoAtual.toString());
-            if (pr != null) {
-                atomoAnterior = atomoAtual.toString();
-                elemento = new Elemento(pr, atomoAnterior, atomoAtual.length(), linha, posicaoLinha, atomoAnterior.length());
-            } else if (character == '\"') {
-                if (elemento != null && (elemento.getPalavraReservada() != PalavrasReservadas.CONSTANT_STRING)) {
-                    continuarMesmoCharacter = true;
+                atomoAtual.append(character);
+            if (!(comentarioLinha || comentarioBloco)) {
+                if ((character == ' ' && !aspas) || character == '\n' || character == '\t') {
                     return elemento;
                 }
-                if (aspas) {
-                    if (elemento != null) {
-                        elemento.setTamanhoAntesTruncagem(atomoAtual.length());
+                PalavrasReservadas pr = PalavrasReservadas.getEqual(atomoAtual.toString());
+                if (atomoAtual.toString().equals("//")) {
+                    comentarioLinha = true;
+                    atomoAtual = new StringBuilder();
+                } else if (atomoAtual.toString().equals("/*")) {
+                    comentarioBloco = true;
+                    atomoAtual = new StringBuilder();
+                } else if (pr != null) {
+                    atomoAnterior = atomoAtual.toString();
+                    elemento = new Elemento(pr, atomoAnterior, atomoAtual.length(), linha, posicaoLinha, atomoAnterior.length());
+                } else if (character == '\"') {
+                    if (elemento != null && (elemento.getPalavraReservada() != PalavrasReservadas.CONSTANT_STRING)) {
+                        continuarMesmoCharacter = true;
                         return elemento;
-                    } else {
-                        java.lang.String conteudo = atomoAtual.toString();
-                        return new Elemento(PalavrasReservadas.CONSTANT_STRING, conteudo, conteudo.length(), linha, posicaoLinha, conteudo.length());
+                    }
+                    if (aspas) {
+                        if (elemento != null) {
+                            elemento.setTamanhoAntesTruncagem(atomoAtual.length());
+                            return elemento;
+                        } else {
+                            java.lang.String conteudo = atomoAtual.toString();
+                            return new Elemento(PalavrasReservadas.CONSTANT_STRING, conteudo, conteudo.length(), linha, posicaoLinha, conteudo.length());
+                        }
+                    }
+                    aspas = true;
+                } else if (aspas) {
+                    if (isString(atomoAtual + "\"")) {
+                        atomoAnterior = atomoAtual.toString();
+                    } else if (elemento == null) {
+                        java.lang.String conteudo = atomoAnterior + "\"";
+                        elemento = new Elemento(PalavrasReservadas.CONSTANT_STRING, conteudo, conteudo.length(), linha, posicaoLinha, 0);
+                    }
+                } else if (isIdentifier(atomoAtual.toString())) {
+                    atomoAnterior = atomoAtual.toString();
+                    elemento = new Elemento(PalavrasReservadas.IDENTIFIER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
+                } else if (isFunctionIdentifier(atomoAtual.toString())) {
+                    atomoAnterior = atomoAtual.toString();
+                    elemento = new Elemento(PalavrasReservadas.FUNCTION, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
+                } else if (isCharacter(atomoAtual.toString())) {
+                    atomoAnterior = atomoAtual.toString();
+                    return new Elemento(PalavrasReservadas.CHARACTER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
+                } else if (isInteger(atomoAtual.toString())) {
+                    atomoAnterior = atomoAtual.toString();
+                    elemento = new Elemento(PalavrasReservadas.INTEGER_NUMBER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
+                } else if (isFloat(atomoAtual.toString() + '0')) {
+                    Character c = getChar();
+                    atomoAnterior = atomoAtual.toString();
+                    elemento = new Elemento(PalavrasReservadas.FLOAT_NUMBER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
+                    if (c != null) {
+                        atomoAtual.append(c);
+                        atomoAnterior = atomoAtual.toString();
+                        if (isFloat(atomoAtual.toString())) {
+                            elemento = new Elemento(PalavrasReservadas.FLOAT_NUMBER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
+                        } else {
+                            charCache = (char) characterAtual;
+                        }
+                    }
+                } else if (elemento != null) {
+                    continuarMesmoCharacter = true;
+                    return elemento;
+                } else {
+                    return null;
+                }
+            } else {
+                elemento = null;
+                if (comentarioLinha) {
+                    if (atomoAtual.toString().equals("\n")) {
+                        comentarioLinha = false;
+                    }
+                    atomoAtual = new StringBuilder();
+                } else {
+                    if (atomoAtual.toString().trim().equals("*/")) {
+                        comentarioBloco = false;
+                        atomoAtual = new StringBuilder();
+                    } else if (atomoAtual.length() >= 2) {
+                        atomoAtual = new StringBuilder();
                     }
                 }
-                aspas = true;
-            } else if (aspas) {
-                if (isString(atomoAtual + "\"")) {
-                    atomoAnterior = atomoAtual.toString();
-                } else if (elemento == null) {
-                    java.lang.String conteudo = atomoAnterior + "\"";
-                    elemento = new Elemento(PalavrasReservadas.CONSTANT_STRING, conteudo, conteudo.length(), linha, posicaoLinha, 0);
-                }
-            } else if (isIdentifier(atomoAtual.toString())) {
-                atomoAnterior = atomoAtual.toString();
-                elemento = new Elemento(PalavrasReservadas.IDENTIFIER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
-            } else if (isFunctionIdentifier(atomoAtual.toString())) {
-                atomoAnterior = atomoAtual.toString();
-                elemento = new Elemento(PalavrasReservadas.FUNCTION, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
-            } else if (isCharacter(atomoAtual.toString())) {
-                atomoAnterior = atomoAtual.toString();
-                return new Elemento(PalavrasReservadas.CHARACTER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
-            } else if (isInteger(atomoAtual.toString())) {
-                atomoAnterior = atomoAtual.toString();
-                elemento = new Elemento(PalavrasReservadas.INTEGER_NUMBER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
-            } else if (isFloat(atomoAtual.toString() + '0')) {
-                Character c = getChar();
-                atomoAnterior = atomoAtual.toString();
-                elemento = new Elemento(PalavrasReservadas.FLOAT_NUMBER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
-                if (c != null) {
-                    atomoAtual.append(c);
-                    atomoAnterior = atomoAtual.toString();
-                    if (isFloat(atomoAtual.toString())) {
-                        elemento = new Elemento(PalavrasReservadas.FLOAT_NUMBER, atomoAnterior, atomoAnterior.length(), linha, posicaoLinha, atomoAnterior.length());
-                    } else {
-                        charCache = (char) characterAtual;
-                    }
-                }
-            } else if (elemento != null) {
-                continuarMesmoCharacter = true;
-                return elemento;
-            }else{
-                return null;
             }
         }
         return elemento;
@@ -105,7 +130,7 @@ public class Lexico {
         if (continuarMesmoCharacter) {
             return Character.toUpperCase((char) characterAtual);
         }
-        if ((characterAtual = bufferDeEntrada.read()) != -1 && characterAtual != 13) {
+        if ((characterAtual = bufferDeEntrada.read()) != -1) {
             if (characterAtual == 10) {
                 linha++;
                 posicaoLinha = 1;
@@ -143,7 +168,9 @@ public class Lexico {
                         siglaUltimoTipo = elemento.getPalavraReservada().getSiglaTipo();
                         break;
                     case ABRE_COLCHE:
-                        siglaUltimoTipo = ultimoTipoEncontrado.getSiglaTipoArray();
+                        if (ultimoTipoEncontrado != null) {
+                            siglaUltimoTipo = ultimoTipoEncontrado.getSiglaTipoArray();
+                        }
                         break;
                 }
                 if (elemento.getPalavraReservada().getAtomo() == null) {
